@@ -1,61 +1,113 @@
-// Every tuning number and colour in one place. The playfield is a fixed 1280x720 logical area;
-// the renderer scales it to the window, so no rule below depends on the screen size.
+// SUNSET CITY — all tuning numbers in one place. World units are metres-ish; y is up.
+// The city is a deterministic grid: N roads per axis, spaced `spacing` apart, centred on the origin.
 
-export const FIELD = { width: 1280, height: 720, groundY: 664 };
+const GRID = 9;          // roads per axis (9 x 9 crossings)
+const SPACING = 110;     // centre-to-centre distance between parallel roads
+const ROAD_W = 18;       // asphalt width
+const SIDEWALK = 4;      // raised concrete apron around each block
 
-/** The simulation's fixed step, in seconds: 60 updates a second whatever the display's rate. */
-export const STEP = 1 / 60;
+export const CITY = {
+  seed: 20261119,
+  grid: GRID,
+  spacing: SPACING,
+  roadWidth: ROAD_W,
+  sidewalk: SIDEWALK,
+  half: ((GRID - 1) * SPACING) / 2,          // 440: outermost road centre
+  blockSize: SPACING - ROAD_W,               // 92: kerb-to-kerb block footprint
+  lotInset: 7,                               // building setback inside a block
+  groundY: 0.05,                             // where the player's feet rest
+  bound: ((GRID - 1) * SPACING) / 2 + 110,   // hard map limit (beach side extends past it)
+  beachZ: ((GRID - 1) * SPACING) / 2 + 60,   // sand starts here (south/+z)
+  waterZ: ((GRID - 1) * SPACING) / 2 + 190,  // sea starts here
+  floorHeight: 3.6,
+  maxFloors: 12,
+  minFloors: 2,
+};
 
 export const PLAYER = {
-  width: 72,
-  height: 24,
-  speed: 560,
-  invulnerable: 1.5,
+  radius: 0.55,
+  height: 1.8,
+  walkSpeed: 5.0,
+  runSpeed: 10.0,
+  accel: 26,
+  friction: 14,
+  jumpSpeed: 8.2,
+  gravity: 26,
+  turnLerp: 12,
+  spawn: { x: 0, z: 30 },
+  maxHealth: 100,
+  startMoney: 2500,
 };
 
-export const LIVES = 3;
-
-export const BLOCK = {
-  minWidth: 40,
-  maxWidth: 110,
-  height: 36,
-  speed: 240,
-  speedPerLevel: 30,
-  speedJitter: 90,
-  interval: 0.55,
-  intervalScale: 0.88,
-  minInterval: 0.14,
-  dodgePoints: 1,
+export const CAMERA = {
+  fov: 62,
+  near: 0.1,
+  far: 2200,
+  distance: 8.5,
+  minDistance: 4.0,
+  maxDistance: 18.0,
+  height: 1.55,          // look-at height above player feet
+  pitch: 0.22,           // radians above the horizon (positive = looking down)
+  minPitch: -0.25,
+  maxPitch: 1.15,
+  sensitivity: 0.0026,
+  lerp: 9,
+  collisionPad: 0.45,
 };
 
-export const COIN = {
-  size: 24,
-  speed: 190,
-  speedPerLevel: 14,
-  interval: 1.4,
-  intervalJitter: 0.8,
-  points: 10,
+export const TIME = {
+  startMinutes: 17 * 60 + 12,   // golden hour
+  minutesPerSecond: 0.65,       // real 1 s ≈ 0.65 in-game minutes (≈ 37 min per in-game day)
+  dayStart: 5 * 60 + 30,
+  nightStart: 21 * 60,
 };
 
-/** Seconds of play per level, and the last level: speeds and spawn rates stop growing there. */
-export const LEVEL = { seconds: 12, max: 12 };
+export const WANTED = { max: 5, start: 0 };
 
-/** How many falling things can exist at once; the pool is allocated once, at boot. */
-export const POOL_SIZE = 64;
-
+// Sunset coast palette. Hex strings; meshes convert with THREE.Color.
 export const PALETTE = {
-  backdrop: '#11141b',
-  sky: '#1b1f2a',
-  ground: '#2a3040',
-  player: '#4fc3f7',
-  block: '#e5534b',
-  coin: '#f2c94c',
-  panel: '#252b38',
-  text: '#eef1f5',
-  muted: '#8b93a3',
+  skyTop: 0x2a1a46,
+  skyMid: 0xc4534a,
+  skyHorizon: 0xffb469,
+  sun: 0xfff0c0,
+  fog: 0xd88d68,
+  water: 0x1d4a60,
+  sand: 0xf2d6a8,
+  asphalt: 0x6b6874,
+  asphaltLine: 0xe8d9b8,
+  sidewalk: 0xc2b5ae,
+  concrete: 0x6f6870,
+  glass: [0x6f93a8, 0x7fa9b6, 0x8fa8a0, 0x6d7f96, 0x93a7b8],
+  warm: [0xd8a17a, 0xc98d76, 0xe0b493, 0xb98a72],
+  roof: 0x4a444f,
+  trim: 0xd9c3a5,
+  trunk: 0x6a5140,
+  palm: 0x3f6f4a,
+  lamp: 0xffd9a0,
+  accent: 0xff8a3d,
+  neon: 0xff5f8a,
+  playerSkin: 0xc98d68,
+  playerShirt: 0xf2f0e8,
+  playerPants: 0x2b3a55,
+  playerHair: 0x2a1d18,
 };
 
-export const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+export const DISTRICTS = [
+  'PUERTO SOL CENTRO',
+  'PLAYA DORADA',
+  'MUELLE VIEJO',
+  'BARRIO DEL MERCADO',
+  'COLINAS ALTAS',
+  'DISTRITO AZUL',
+  'LA MARINA',
+  'COSTA NORTE',
+  'EL MIRADOR',
+];
 
-/** Where the best score is kept between visits (this browser only). */
-export const BEST_KEY = 'block-dodger.best';
+// Rendering budget knobs: beyond these the instancing simply spreads further.
+export const PERF = {
+  maxPixelRatio: 1.75,
+  shadowless: true,
+  fogNear: 120,
+  fogFar: 760,
+};

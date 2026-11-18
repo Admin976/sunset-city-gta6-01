@@ -1,19 +1,197 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block Dodger</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>SUNSET CITY &mdash; Puerto Sol</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #11141b; }
-  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Read aloud, never shown: the status line screen readers announce. */
-  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #140d1e; }
+  body { font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif; color: #fff5e6; }
+  #app { position: fixed; inset: 0; }
+  canvas#scene { display: block; width: 100%; height: 100%; }
+
+  /* ---------- HUD ---------- */
+  #hud {
+    position: fixed; inset: 0; pointer-events: none;
+    text-shadow: 0 2px 8px rgba(0,0,0,.65);
+    font-variant-numeric: tabular-nums;
+  }
+  .panel {
+    background: linear-gradient(160deg, rgba(26,16,38,.72), rgba(26,16,38,.42));
+    border: 1px solid rgba(255,196,120,.32);
+    border-radius: 10px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 8px 24px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,220,180,.14);
+  }
+  #topleft { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 8px; }
+  #healthwrap { width: 230px; padding: 8px 10px 9px; }
+  #healthlabel { font-size: 10px; letter-spacing: 3px; color: #ffb27a; margin-bottom: 5px; }
+  #healthtrack { height: 9px; background: rgba(0,0,0,.55); border-radius: 5px; overflow: hidden; }
+  #healthbar {
+    height: 100%; width: 100%;
+    background: linear-gradient(90deg, #ff5d3b, #ffb347 60%, #ffe08a);
+    border-radius: 5px; transition: width .18s linear;
+  }
+  #moneyrow { display: flex; align-items: center; gap: 8px; padding: 7px 12px; width: fit-content; }
+  #money { font-size: 21px; font-weight: 700; color: #b8ffc9; letter-spacing: .5px; }
+  #moneytag { font-size: 9px; letter-spacing: 2px; color: #9fd6ae; }
+  #moneyflash { font-size: 12px; color: #ffe08a; opacity: 0; transition: opacity .3s; }
+
+  #topright { position: absolute; top: 20px; right: 20px; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  #clockbox { padding: 7px 14px; display: flex; align-items: baseline; gap: 8px; }
+  #clock { font-size: 22px; font-weight: 700; letter-spacing: 1px; color: #ffd9a0; }
+  #dayphase { font-size: 9px; letter-spacing: 2px; color: #ff9d63; }
+  #district {
+    font-size: 15px; letter-spacing: 3px; padding: 6px 14px;
+    color: #fff0d8; transition: opacity .35s;
+  }
+  #wanted { display: flex; gap: 3px; padding: 6px 11px; font-size: 17px; line-height: 1; }
+  #wanted span { color: rgba(255,255,255,.16); transition: color .25s, text-shadow .25s; }
+  #wanted span.on { color: #ffd166; text-shadow: 0 0 10px rgba(255,190,60,.9); }
+
+  #speedo {
+    position: absolute; left: 22px; bottom: 22px; padding: 10px 16px 12px;
+    display: flex; align-items: flex-end; gap: 10px;
+  }
+  #speed { font-size: 34px; font-weight: 700; letter-spacing: -1px; line-height: .9; color: #ffe6bd; }
+  #speedunit { font-size: 10px; letter-spacing: 3px; color: #ff9d63; padding-bottom: 3px; }
+  #speedbar { position: absolute; left: 12px; right: 12px; bottom: 5px; height: 3px; background: rgba(0,0,0,.5); border-radius: 2px; }
+  #speedfill { height: 100%; width: 0%; background: linear-gradient(90deg,#ff7a3c,#ffd166); border-radius: 2px; }
+
+  #minimapwrap { position: absolute; right: 20px; bottom: 20px; padding: 8px; }
+  #minimap { display: block; width: 200px; height: 200px; border-radius: 50%; background: #1a1026; }
+  #minimapring { position: absolute; inset: 8px; border-radius: 50%; border: 2px solid rgba(255,180,110,.5); pointer-events: none; }
+  #minimapcoords { position: absolute; bottom: -2px; left: 12px; font-size: 9px; letter-spacing: 1px; color: #ffb27a; }
+
+  #hint {
+    position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
+    font-size: 11px; letter-spacing: 2px; color: rgba(255,230,205,.65);
+    padding: 6px 14px; transition: opacity .6s;
+  }
+
+  /* ---------- title ---------- */
+  #title {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background:
+      radial-gradient(ellipse at 50% 78%, rgba(255,138,66,.35), transparent 58%),
+      linear-gradient(180deg, #1a0f2b 0%, #4a1f43 38%, #a83f43 68%, #f08b45 100%);
+    z-index: 20; transition: opacity .5s;
+  }
+  #title.hidden { opacity: 0; pointer-events: none; }
+  #titlecard { text-align: center; padding: 40px 54px; max-width: 640px; }
+  #sunline { width: 120px; height: 3px; margin: 0 auto 22px; background: linear-gradient(90deg, transparent, #ffca7a, transparent); }
+  #title h1 {
+    font-size: 62px; letter-spacing: 14px; font-weight: 800; line-height: 1;
+    color: #fff3dc; text-shadow: 0 0 40px rgba(255,150,70,.75), 0 6px 0 rgba(90,26,50,.6);
+    margin-left: 14px;
+  }
+  #title h2 {
+    font-size: 12px; letter-spacing: 8px; color: #ffc58a; margin-top: 14px; font-weight: 400;
+  }
+  #title p { margin-top: 20px; font-size: 13px; line-height: 1.7; color: rgba(255,232,214,.8); }
+  #buttons { margin-top: 30px; display: flex; gap: 14px; justify-content: center; }
+  .btn {
+    pointer-events: auto; cursor: pointer; font-family: inherit;
+    padding: 13px 34px; font-size: 13px; letter-spacing: 4px; font-weight: 700;
+    color: #21101f; background: linear-gradient(180deg, #ffd79a, #ff9a5c);
+    border: none; border-radius: 4px; box-shadow: 0 6px 0 #8c3b2c, 0 14px 30px rgba(0,0,0,.35);
+    transition: transform .12s, box-shadow .12s;
+  }
+  .btn:hover { transform: translateY(2px); box-shadow: 0 4px 0 #8c3b2c, 0 8px 20px rgba(0,0,0,.35); }
+  .btn.ghost {
+    background: rgba(255,255,255,.06); color: #ffddb8;
+    border: 1px solid rgba(255,190,130,.5); box-shadow: none;
+  }
+  .btn.ghost:hover { background: rgba(255,255,255,.13); }
+  #controls {
+    display: none; margin-top: 26px; text-align: left;
+    background: rgba(20,10,28,.62); border: 1px solid rgba(255,190,130,.25);
+    border-radius: 8px; padding: 18px 22px; font-size: 12px; line-height: 2;
+    columns: 2; column-gap: 30px; color: #ffe6cd;
+  }
+  #controls.show { display: block; }
+  #controls b { color: #ffb97a; letter-spacing: 1px; }
+  #loading { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: 3px; color: rgba(255,220,190,.5); z-index: 25; }
 </style>
 </head>
 <body>
-<canvas id="game" aria-label="Block Dodger: move the paddle left and right to dodge falling blocks and catch coins"></canvas>
-<p id="status" role="status" aria-live="polite"></p>
+<div id="app">
+  <canvas id="scene"></canvas>
+</div>
+
+<div id="hud">
+  <div id="topleft">
+    <div id="healthwrap" class="panel">
+      <div id="healthlabel">CONDITION</div>
+      <div id="healthtrack"><div id="healthbar"></div></div>
+    </div>
+    <div id="moneyrow" class="panel">
+      <div>
+        <div id="moneytag">CASH</div>
+        <div id="money">$ 0</div>
+      </div>
+      <div id="moneyflash"></div>
+    </div>
+  </div>
+
+  <div id="topright">
+    <div id="clockbox" class="panel">
+      <div id="clock">17:20</div>
+      <div id="dayphase">GOLDEN HOUR</div>
+    </div>
+    <div id="district" class="panel">PUERTO SOL</div>
+    <div id="wanted" class="panel">
+      <span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span>&#9733;</span>
+    </div>
+  </div>
+
+  <div id="speedo" class="panel">
+    <div id="speed">0</div>
+    <div id="speedunit">KM/H</div>
+    <div id="speedbar"><div id="speedfill"></div></div>
+  </div>
+
+  <div id="minimapwrap" class="panel">
+    <canvas id="minimap" width="200" height="200"></canvas>
+    <div id="minimapring"></div>
+    <div id="minimapcoords">PUERTO SOL</div>
+  </div>
+
+  <div id="hint">WASD MOVE &nbsp;&middot;&nbsp; SHIFT RUN &nbsp;&middot;&nbsp; SPACE JUMP &nbsp;&middot;&nbsp; DRAG LOOK &nbsp;&middot;&nbsp; WHEEL ZOOM</div>
+</div>
+
+<div id="title">
+  <div id="titlecard">
+    <div id="sunline"></div>
+    <h1>SUNSET CITY</h1>
+    <h2>PUERTO SOL &mdash; OPEN WORLD CRIME</h2>
+    <p>Golden hour on the coast. Glass towers, palm-lined boulevards and a harbour<br />that never asks where the money came from. Explore the city.</p>
+    <div id="buttons">
+      <button id="playbtn" class="btn">PLAY</button>
+      <button id="ctrbtn" class="btn ghost">CONTROLS</button>
+    </div>
+    <div id="controls">
+      <div><b>W A S D</b> &mdash; walk</div>
+      <div><b>SHIFT</b> &mdash; sprint</div>
+      <div><b>SPACE</b> &mdash; jump</div>
+      <div><b>MOUSE DRAG</b> &mdash; orbit camera</div>
+      <div><b>CLICK</b> &mdash; pointer lock</div>
+      <div><b>WHEEL</b> &mdash; zoom</div>
+      <div><b>ESC</b> &mdash; release mouse</div>
+      <div><b>R</b> &mdash; back to spawn</div>
+    </div>
+  </div>
+</div>
+<div id="loading">BUILDING PUERTO SOL&hellip;</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three.module.min.js"
+  }
+}
+</script>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>
