@@ -15,6 +15,16 @@ export class HUD {
       speedFill: doc.getElementById('speedfill'),
       hint: doc.getElementById('hint'),
       coords: doc.getElementById('minimapcoords'),
+      ammo: doc.getElementById('ammo'),
+      ammomax: doc.getElementById('ammomax'),
+      weapon: doc.getElementById('weapon'),
+      carname: doc.getElementById('carname'),
+      cardamage: doc.getElementById('cardamage'),
+      objective: doc.getElementById('objectiveText'),
+      toast: doc.getElementById('toast'),
+      hurt: doc.getElementById('hurt'),
+      crosshair: doc.getElementById('crosshair'),
+      useBtn: doc.getElementById('btnuse'),
     };
     this.stars = Array.from(this.el.wanted?.children ?? []);
     this.last = {};
@@ -22,6 +32,15 @@ export class HUD {
     this.districtTimer = 0;
     this.flashTimer = 0;
     this.hintTimer = 0;
+    this.toastTimer = 0;
+  }
+
+  /** Short centre-screen message ("OUT OF AMMO", "WANTED LEVEL DECREASED"). */
+  toast(text) {
+    if (!this.el.toast) return;
+    this.el.toast.textContent = text;
+    this.el.toast.classList.add('show');
+    this.toastTimer = 1.8;
   }
 
   /** Time-of-day label for the clock widget. */
@@ -101,12 +120,60 @@ export class HUD {
       }
     }
 
-    // speedometer
+    // speedometer (and the vehicle label / damage readout)
     const kmh = Math.round(Math.hypot(state.velocity.x, state.velocity.z) * 3.6);
     if (kmh !== this.last.kmh) {
       this.last.kmh = kmh;
       this.el.speed.textContent = String(kmh);
-      this.el.speedFill.style.width = `${Math.min(100, (kmh / 45) * 100)}%`;
+      this.el.speedFill.style.width = `${Math.min(100, (kmh / 160) * 100)}%`;
+    }
+    if (state.carName !== this.last.carName) {
+      this.last.carName = state.carName;
+      if (this.el.carname) {
+        this.el.carname.innerHTML = `${state.carName || 'ON FOOT'} <span id="cardamage">DMG 0%</span>`;
+        this.el.cardamage = document.getElementById('cardamage');
+      }
+    }
+    const dmg = Math.round(state.damage || 0);
+    if (dmg !== this.last.dmg && this.el.cardamage) {
+      this.last.dmg = dmg;
+      this.el.cardamage.textContent = `DMG ${dmg}%`;
+      this.el.cardamage.style.opacity = dmg > 5 ? '1' : '0';
+    }
+    if (state.driving !== this.last.driving) {
+      this.last.driving = state.driving;
+      this.el.crosshair?.classList.toggle('hide', !!state.driving);
+      if (this.el.useBtn) this.el.useBtn.innerHTML = `${state.driving ? 'EXIT' : 'ENTER'}<i>E</i>`;
+    }
+
+    // weapon / ammo
+    const ammo = Math.max(0, state.ammo ?? 0);
+    if (ammo !== this.last.ammo) {
+      this.last.ammo = ammo;
+      if (this.el.ammo) {
+        this.el.ammo.textContent = String(ammo);
+        this.el.ammo.classList.toggle('low', ammo <= 5);
+      }
+    }
+
+    // objective label
+    if (state.objective && state.objective !== this.last.objective) {
+      this.last.objective = state.objective;
+      if (this.el.objective) this.el.objective.textContent = state.objective;
+    }
+
+    // damage vignette
+    if (this.el.hurt) {
+      const want = state.hurtFlash ? '1' : '0';
+      if (want !== this.last.hurt) {
+        this.last.hurt = want;
+        this.el.hurt.style.opacity = want;
+      }
+    }
+
+    if (this.toastTimer > 0) {
+      this.toastTimer -= dt;
+      if (this.toastTimer <= 0) this.el.toast?.classList.remove('show');
     }
 
     // the control hint fades after a few seconds of play

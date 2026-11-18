@@ -7,6 +7,12 @@ import { Player } from './player.js';
 import { OrbitCamera } from './camera.js';
 import { HUD } from './hud.js';
 import { Minimap } from './minimap.js';
+import { Traffic } from './traffic.js';
+import { Driving } from './driving.js';
+import { Peds } from './peds.js';
+import { Police } from './police.js';
+import { Combat } from './combat.js';
+import { GameAudio } from './audio.js';
 
 const params = new URLSearchParams(window.location.search);
 const cinematic = params.get('view') === 'city';
@@ -110,6 +116,41 @@ orbit.yaw = 2.7;
 const hud = new HUD(document);
 const minimap = new Minimap(document.getElementById('minimap'), cityData);
 
+/* ------------------------------------------------------------------ new systems */
+
+const audio = new GameAudio();
+const traffic = new Traffic(scene, cityData, audio);
+const peds = new Peds(scene, cityData, 32);
+const police = new Police(scene, cityData, audio);
+const driving = new Driving(scene, player, camera, traffic, audio);
+const combat = new Combat(scene, {
+  player, camera, audio, peds, police, traffic,
+  onCrime: (kind, pos, severity) => police.reportCrime(kind, pos, severity),
+  onToast: (text) => hud.toast(text),
+});
+
+police.targetPos = player.position;
+combat.onDeath = () => {
+  if (driving.active) driving.exit();
+  player.reset();
+  player.health = PLAYER.maxHealth;
+  combat.ammo = 30;
+  police.clear();
+  hud.toast('BUSTED — BACK TO THE PROMENADE');
+};
+
+// a rotating landmark itinerary, drawn on the minimap
+const landmarks = cityData.landmarks.filter((l) => l.type !== 'tower');
+let objectiveIndex = 0;
+const objective = { x: 0, z: 0, label: '' };
+function refreshObjective() {
+  const l = landmarks[objectiveIndex % landmarks.length];
+  objective.x = l.x;
+  objective.z = l.z;
+  objective.label = l.name.toUpperCase();
+}
+refreshObjective();
+
 const state = {
   mode: 'menu',                 // 'menu' | 'play'
   minutes: TIME.startMinutes,
@@ -131,15 +172,64 @@ window.addEventListener('keydown', (e) => {
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   if (e.repeat) return;
   keys.add(e.code);
-  if (e.code === 'Space') jumpQueued = true;
+  if (e.code === 'Space' && !driving.active) jumpQueued = true;
+  if (e.code === 'KeyE') toggleVehicle();
+  if (e.code === 'KeyF' && state.mode === 'play' && !driving.active) combat.punch();
+  if (e.code === 'KeyH') {
+    if (audio.started) audio.horn(0.8);
+    else audio.start();
+  }
+  if (e.code === 'KeyK' && state.mode === 'play') {
+    police.reportCrime('assault', player.position, 1);
+    hud.toast('POLICE ALERTED — DEMO');
+  }
   if (e.code === 'KeyR') {
+    if (driving.active) driving.exit();
     player.reset();
-    state.health = PLAYER.maxHealth;
+    player.health = PLAYER.maxHealth;
+    combat.ammo = 30;
+    police.clear();
+    hud.toast('RESET');
   }
   if (e.code === 'Enter' && state.mode === 'menu') startGame();
 });
 window.addEventListener('keyup', (e) => keys.delete(e.code));
 window.addEventListener('blur', () => keys.clear());
+
+/* ------------------------------------------------------------------ vehicles / weapons */
+
+function toggleVehicle() {
+  if (state.mode !== 'play') return;
+  if (driving.active) {
+    driving.exit();
+    hud.toast('BACK ON FOOT');
+    return;
+  }
+  const car = driving.nearest(player.position);
+  if (!car) {
+    hud.toast('NO VEHICLE NEARBY');
+    return;
+  }
+  let witnesses = 0;
+  for (const p of peds.peds) {
+    if (p.state === 'down') continue;
+    if (Math.hypot(p.position.x - player.position.x, p.position.z - player.position.z) < 26) witnesses++;
+  }
+  driving.enter(car);
+  if (witnesses > 0) {
+    police.reportCrime('carjack', player.position, 2);
+    hud.toast(`GRAND THEFT AUTO — ${car.spec.label}`);
+  } else {
+    hud.toast(`${car.spec.label} — GO`);
+  }
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  if (state.mode !== 'play') return;
+  if (!audio.started) audio.start();
+  if (!driving.active) combat.fire();
+});
 
 function readInput() {
   const x = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
@@ -157,11 +247,26 @@ function startGame() {
   titleEl.classList.add('hidden');
   hud.setLoading('');
   window.__game.mode = 'play';
+  audio.start();
+  hud.toast('CLICK TO FIRE — E TO DRIVE');
 }
 
 document.getElementById('playbtn').addEventListener('click', startGame);
 document.getElementById('ctrbtn').addEventListener('click', () => {
   controlsEl.classList.toggle('show');
+});
+document.getElementById('btnfire').addEventListener('click', () => {
+  if (state.mode !== 'play') return;
+  audio.start();
+  if (!driving.active) combat.fire();
+});
+document.getElementById('btnpunch').addEventListener('click', () => {
+  if (state.mode === 'play' && !driving.active) combat.punch();
+});
+document.getElementById('btnuse').addEventListener('click', toggleVehicle);
+document.getElementById('btnhorn').addEventListener('click', () => {
+  audio.start();
+  audio.horn(0.7);
 });
 if (cinematic) titleEl.classList.add('hidden');
 
@@ -221,6 +326,8 @@ const clock = new THREE.Clock();
 let elapsed = 0;
 let frames = 0;
 let fpsTimer = 0;
+let footstepTimer = 0;
+let objectiveTimer = 0;
 window.__fps = 0;
 window.__ready = false;
 
@@ -234,8 +341,31 @@ function frame() {
   updateSky(state.minutes);
 
   if (state.mode === 'play') {
-    player.update(dt, readInput(), orbit.yaw, cityData.colliders);
-    orbit.update(dt, player.position);
+    if (driving.active) {
+      driving.update(dt, {
+        throttle: keys.has('KeyW'),
+        brake: keys.has('KeyS'),
+        left: keys.has('KeyA'),
+        right: keys.has('KeyD'),
+        handbrake: keys.has('Space'),
+      }, cityData.colliders, {
+        peds,
+        police,
+        onCrime: (kind, pos, sev) => police.reportCrime(kind, pos, sev),
+      });
+      driving.updateCamera(dt);
+      player.group.visible = false;
+    } else {
+      player.group.visible = true;
+      player.update(dt, readInput(), orbit.yaw, cityData.colliders);
+      orbit.update(dt, player.position);
+      // footsteps
+      footstepTimer -= dt;
+      if (player.speed > 1.2 && footstepTimer <= 0) {
+        footstepTimer = player.speed > 7 ? 0.28 : 0.44;
+        audio.footstep(player.speed > 7 ? 0.7 : 0.4);
+      }
+    }
   } else {
     // title / vista: a slow drift around the spawn point
     if (cinematic) {
@@ -256,6 +386,38 @@ function frame() {
   const beacon = city.group.getObjectByName('TorreFaro')?.userData.beacon;
   if (beacon) beacon.material.color.setRGB(1, 0.2 + 0.25 * (0.5 + 0.5 * Math.sin(elapsed * 3)), 0.32);
 
+  /* -------------------------------------------------------- world systems */
+  const playing = state.mode === 'play';
+  traffic.update(dt, {
+    player,
+    minutes: state.minutes,
+    driving: driving.active,
+    playerCar: driving.car,
+  });
+  peds.update(dt, { player, colliders: cityData.colliders });
+  police.update(dt, {
+    player,
+    driving: driving.active,
+    combat,
+    toast: (t) => hud.toast(t),
+  });
+  combat.update(dt);
+  audio.update(dt, {
+    driving: driving.active,
+    speed: driving.active ? Math.abs(driving.speed) : 0,
+    throttle: driving.throttle > 0,
+  });
+
+  // objective: reached one landmark, move the pin to the next
+  const objDist = Math.hypot(player.position.x - objective.x, player.position.z - objective.z);
+  objectiveTimer -= dt;
+  if (objDist < 24 && objectiveTimer <= 0) {
+    objectiveIndex = (objectiveIndex + 1) % landmarks.length;
+    refreshObjective();
+    objectiveTimer = 6;
+    if (playing) hud.toast('NEW DESTINATION — ' + objective.label);
+  }
+
   state.district = districtAt(cityData, player.position.x, player.position.z);
   state.health = player.health;
   state.velocity = player.velocity;
@@ -265,10 +427,24 @@ function frame() {
     money: state.money,
     minutes: state.minutes,
     district: state.district,
-    wanted: state.wanted,
+    wanted: police.level,
     velocity: state.velocity,
+    ammo: combat.ammo,
+    weapon: combat.weapon,
+    carName: driving.active && driving.car ? driving.car.spec.label : 'ON FOOT',
+    damage: driving.damage,
+    driving: driving.active,
+    objective: `${objective.label}  ${Math.round(objDist)}m`,
+    hurtFlash: combat.hitFlash > 0,
   });
-  minimap.update(player.position, player.yaw);
+  minimap.update(player.position, driving.active ? driving.yaw : player.yaw, {
+    objective,
+    police: [
+      ...police.cars.map((c) => ({ x: c.position.x, z: c.position.z })),
+      ...police.officers.filter((o) => o.state !== 'down').map((o) => ({ x: o.position.x, z: o.position.z })),
+    ],
+    playerCar: driving.active && driving.car ? driving.car.position : null,
+  });
 
   renderer.render(scene, camera);
 
@@ -291,6 +467,7 @@ window.addEventListener('resize', () => {
 window.__game = {
   mode: state.mode,
   scene, camera, renderer, player, orbit, hud, city: cityData, state,
+  vehicles: traffic, traffic, driving, peds, police, combat, audio, objective,
   start: startGame,
   info: () => renderer.info.render,
 };

@@ -90,7 +90,7 @@ export class Minimap {
     this.map = c;
   }
 
-  update(player, yaw) {
+  update(player, yaw, extras = {}) {
     const ctx = this.ctx;
     const size = this.size;
     const half = size / 2;
@@ -138,6 +138,53 @@ export class Minimap {
     ctx.shadowBlur = 10;
     ctx.fill();
     ctx.restore();
+
+    // ---- objective marker (clamped to the rim when it is off the map) ----
+    const k = (half - 8) / this.viewRadius;
+    const maxR = half - 13;
+    const place = (wx, wz) => {
+      let dx = (wx - player.x) * k;
+      let dz = (wz - player.z) * k;
+      const d = Math.hypot(dx, dz);
+      if (d > maxR) { dx = (dx / d) * maxR; dz = (dz / d) * maxR; }
+      return [half + dx, half + dz];
+    };
+
+    if (extras.objective) {
+      const [ox, oy] = place(extras.objective.x, extras.objective.z);
+      const pulse = 0.7 + 0.3 * Math.sin(performance.now() * 0.005);
+      ctx.save();
+      ctx.translate(ox, oy);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = 'rgba(255,209,102,0.95)';
+      ctx.shadowColor = 'rgba(255,190,60,0.9)';
+      ctx.shadowBlur = 8 * pulse;
+      ctx.fillRect(-4, -4, 8, 8);
+      ctx.restore();
+    }
+
+    for (const cop of extras.police || []) {
+      const [cx, cy] = place(cop.x, cop.z);
+      ctx.beginPath();
+      ctx.arc(cx, cy, 4.6, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(70,120,255,0.28)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx, cy, 2.4, 0, Math.PI * 2);
+      ctx.fillStyle = '#7fb2ff';
+      ctx.shadowColor = 'rgba(90,150,255,0.95)';
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    if (extras.playerCar) {
+      const [px, py] = place(extras.playerCar.x, extras.playerCar.z);
+      ctx.beginPath();
+      ctx.arc(px, py, 2.2, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffd9a0';
+      ctx.fill();
+    }
 
     ctx.restore();
 
