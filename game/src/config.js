@@ -56,7 +56,7 @@ export const CAMERA = {
 };
 
 export const TIME = {
-  startMinutes: 17 * 60 + 12,   // golden hour
+  startMinutes: 17 * 60 + 40,   // low golden-hour sun
   minutesPerSecond: 0.65,       // real 1 s ≈ 0.65 in-game minutes (≈ 37 min per in-game day)
   dayStart: 5 * 60 + 30,
   nightStart: 21 * 60,
@@ -66,11 +66,11 @@ export const WANTED = { max: 5, start: 0 };
 
 // Sunset coast palette. Hex strings; meshes convert with THREE.Color.
 export const PALETTE = {
-  skyTop: 0x2a1a46,
-  skyMid: 0xc4534a,
+  skyTop: 0x241a44,
+  skyMid: 0xc2534a,
   skyHorizon: 0xffb469,
-  sun: 0xfff0c0,
-  fog: 0xd88d68,
+  sun: 0xffe6b0,
+  fog: 0x6d84a6,          // thin, cool haze over an orange horizon
   water: 0x1d4a60,
   sand: 0xf2d6a8,
   asphalt: 0x6b6874,
@@ -79,6 +79,17 @@ export const PALETTE = {
   concrete: 0x6f6870,
   glass: [0x6f93a8, 0x7fa9b6, 0x8fa8a0, 0x6d7f96, 0x93a7b8],
   warm: [0xd8a17a, 0xc98d76, 0xe0b493, 0xb98a72],
+  // facade families: cream stucco, white render, brick, blue curtain glass, pastel yellow
+  facadeCream: 0xe8d3a8,
+  facadeWhite: 0xf1e8d7,
+  facadeBrick: 0xa5553f,
+  facadeGlass: 0x6f9fb6,
+  facadeYellow: 0xefd88f,
+  window: 0x223140,
+  windowLit: 0xffd9a0,
+  awning: [0xc9533f, 0x2f7a6a, 0xd8a23c, 0x3f5f8a, 0xb44f6f],
+  tree: 0x3d6b45,
+  treeTrunk: 0x5b4636,
   roof: 0x4a444f,
   trim: 0xd9c3a5,
   trunk: 0x6a5140,
@@ -108,6 +119,6 @@ export const DISTRICTS = [
 export const PERF = {
   maxPixelRatio: 1.75,
   shadowless: true,
-  fogNear: 120,
-  fogFar: 760,
+  fogNear: 150,
+  fogFar: 900,
 };

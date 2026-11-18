@@ -83,7 +83,7 @@ export class Police {
   }
 
   spawnCar(x, z, yaw) {
-    const v = buildVehicle('sedan', { police: true, color: 0x1c2330 });
+    const v = buildVehicle('sedan', { police: true, color: 0xe8e4d8 });
     v.group.position.set(x, 0.05, z);
     v.group.rotation.y = yaw;
     this.scene.add(v.group);
@@ -317,10 +317,16 @@ export class Police {
     const on = this.level > 0 ? (Math.sin(this.lightPhase * 12) > 0) : false;
     for (const car of this.cars) {
       if (!car.siren) continue;
-      car.siren[0].material.color.setHex(on ? 0xff2a2a : 0x551515);
-      car.siren[1].material.color.setHex(on ? 0x3a6bff : 0x152055);
+      car.siren[0].material.color.setHex(on ? 0xff2a2a : 0x7a1a1a);
+      car.siren[1].material.color.setHex(on ? 0x1a2a7a : 0x3a5bff);
       car.siren[0].scale.setScalar(on ? 1.5 : 1);
       car.siren[1].scale.setScalar(on ? 1 : 1.5);
+      if (car.siren[2]) {
+        car.siren[2].material.color.setHex(on ? 0xff3a3a : 0x501818);
+        car.siren[3].material.color.setHex(on ? 0x1a2a70 : 0x4a7bff);
+        car.siren[2].material.opacity = on ? 0.95 : 0.3;
+        car.siren[3].material.opacity = on ? 0.3 : 0.95;
+      }
     }
   }
 

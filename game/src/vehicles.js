@@ -204,7 +204,7 @@ export function buildVehicle(type = 'sedan', opts = {}) {
   for (let i = 0; i < 2; i++) {
     for (const s of [-1, 1]) {
       const w = makeWheel(wheelR, dark);
-      w.position.set(s * (W / 2 - 0.04), wheelR, axleZ[i]);
+      w.position.set(s * (W / 2 + 0.04), wheelR, axleZ[i]);
       group.add(w);
       wheels.push(w);
       if (i === 0) steerWheels.push(w);
@@ -224,18 +224,46 @@ export function buildVehicle(type = 'sedan', opts = {}) {
   let siren = null;
   if (opts.police) {
     const barRed = basic(0xff2a2a);
-    const barBlue = basic(0x3a6bff);
+    const barBlue = basic(0x2a5bff);
     const bar = new THREE.Group();
-    bar.position.set(0, bodyY + 0.34 + cabinH + 0.12, cabinZ);
+    bar.position.set(0, bodyY + 0.34 + cabinH + 0.16, cabinZ);
+    const housing = boxMesh(1.15, 0.12, 0.34, lambert(0x14161c));
+    bar.add(housing);
     const lamps = [];
     for (const [s, mat] of [[-1, barRed], [1, barBlue]]) {
-      const lamp = boxMesh(0.36, 0.14, 0.22, mat);
-      lamp.position.x = s * 0.24;
+      const lamp = boxMesh(0.5, 0.18, 0.26, mat);
+      lamp.position.set(s * 0.3, 0.09, 0);
       bar.add(lamp);
       lamps.push(lamp);
     }
     shell.add(bar);
     siren = lamps;      // the two lamp meshes, flashed by police.js
+
+    // blue side stripe + a POLICE door decal so the white patrol car reads at a glance
+    for (const s of [-1, 1]) {
+      const stripe = boxMesh(0.045, 0.2, 2.4, lambert(0x1f3f7a));
+      stripe.position.set(s * (W / 2 + 0.012), bodyY + 0.42, 0.1);
+      shell.add(stripe);
+      const decal = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.15, 0.32),
+        new THREE.MeshBasicMaterial({ map: makePoliceTexture(), transparent: true }),
+      );
+      decal.position.set(s * (W / 2 + 0.05), bodyY + 0.42, 0.1);
+      decal.rotation.y = s * Math.PI / 2;
+      shell.add(decal);
+    }
+    // additive halos make the light bar read at street distance
+    const glowTex = makeGlowSpriteTexture();
+    for (const [s, col] of [[-1, 0xff2a2a], [1, 0x2a5bff]]) {
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTex, color: col, transparent: true, opacity: 0.9,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }));
+      halo.position.set(s * 0.32, 0.2, 0);
+      halo.scale.set(2.0, 1.1, 1);
+      bar.add(halo);
+      lamps.push(halo);
+    }
   }
 
   return {
@@ -243,6 +271,39 @@ export function buildVehicle(type = 'sedan', opts = {}) {
     wheels, steerWheels, headlights, tailLights, glow, siren,
     wheelR,
   };
+}
+
+let policeTexture = null;
+function makePoliceTexture() {
+  if (policeTexture) return policeTexture;
+  const cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 72;
+  const g = cv.getContext('2d');
+  g.clearRect(0, 0, 256, 72);
+  g.fillStyle = '#10141c';
+  g.font = 'bold 44px "Arial Black", "Trebuchet MS", sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText('POLICE', 128, 38);
+  policeTexture = new THREE.CanvasTexture(cv);
+  if ('colorSpace' in policeTexture) policeTexture.colorSpace = THREE.SRGBColorSpace;
+  return policeTexture;
+}
+
+let glowSpriteTexture = null;
+function makeGlowSpriteTexture() {
+  if (glowSpriteTexture) return glowSpriteTexture;
+  const cv = document.createElement('canvas');
+  cv.width = 64; cv.height = 64;
+  const g = cv.getContext('2d');
+  const grd = g.createRadialGradient(32, 32, 1, 32, 32, 31);
+  grd.addColorStop(0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.3, 'rgba(255,255,255,0.6)');
+  grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 64, 64);
+  glowSpriteTexture = new THREE.CanvasTexture(cv);
+  return glowSpriteTexture;
 }
 
 /** Type key picked by a seeded-ish random roll, weighted toward sedans. */

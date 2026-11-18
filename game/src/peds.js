@@ -207,6 +207,11 @@ export class Peds {
         p.timer += dt;
         continue;
       }
+      // mission actors (thugs, the informant) are driven by missions.js, not the crowd AI
+      if (p.state === 'thug') {
+        p.timer += dt;
+        continue;
+      }
 
       let speed = 1.45;
       if (p.state === 'panic') {

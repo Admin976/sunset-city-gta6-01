@@ -103,9 +103,10 @@
   #toast.show { opacity: 1; }
 
   #actionbar {
-    position: absolute; right: 246px; bottom: 22px; display: flex; gap: 7px;
+    position: absolute; right: 246px; bottom: 22px; display: none; gap: 7px;
     pointer-events: auto; align-items: flex-end;
   }
+  @media (pointer: coarse) { #actionbar { display: flex; } }
   .abtn {
     font-family: inherit; cursor: pointer; font-size: 9px; letter-spacing: 1.5px; font-weight: 700;
     color: #ffe6cd; background: rgba(26,16,38,.72);
@@ -171,6 +172,92 @@
   #controls.show { display: block; }
   #controls b { color: #ffb97a; letter-spacing: 1px; }
   #loading { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); font-size: 10px; letter-spacing: 3px; color: rgba(255,220,190,.5); z-index: 25; }
+
+  /* ---------- mission HUD ---------- */
+  #missionpanel { width: 230px; padding: 9px 12px 11px; display: flex; flex-direction: column; gap: 4px; }
+  #missionpanel.hidden { display: none; }
+  #mp-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  #mp-tag { font-size: 8px; letter-spacing: 2px; color: #ff9d63; }
+  #mp-timer { font-size: 12px; font-weight: 700; color: #b8ffc9; letter-spacing: 1px; }
+  #mp-timer.low { color: #ff6a4a; }
+  #mp-title { font-size: 15px; font-weight: 700; letter-spacing: 2px; color: #ffe6bd; }
+  #mp-objective { font-size: 10px; letter-spacing: .8px; line-height: 1.5; color: #fff0d8; }
+  #mp-foot { display: flex; justify-content: space-between; align-items: center; font-size: 8px; letter-spacing: 2px; color: rgba(255,178,122,.75); }
+  #mp-track { height: 3px; background: rgba(0,0,0,.5); border-radius: 2px; overflow: hidden; margin-top: 2px; }
+  #mp-bar { height: 100%; width: 0%; background: linear-gradient(90deg,#ff7a3c,#ffd166); transition: width .25s linear; }
+
+  #missionbanner {
+    position: absolute; left: 50%; top: 24%; transform: translate(-50%, -8px);
+    text-align: center; opacity: 0; transition: opacity .4s, transform .4s;
+    padding: 14px 40px; border-radius: 3px; white-space: nowrap;
+    background: linear-gradient(180deg, rgba(20,10,28,.82), rgba(20,10,28,.35));
+    border-top: 1px solid rgba(255,190,120,.5); border-bottom: 1px solid rgba(255,190,120,.5);
+  }
+  #missionbanner.show { opacity: 1; transform: translate(-50%, 0); }
+  #mb-kicker { font-size: 9px; letter-spacing: 5px; color: #ff9d63; }
+  #mb-title { font-size: 30px; font-weight: 800; letter-spacing: 7px; color: #fff3dc; margin: 5px 0 4px; text-shadow: 0 0 30px rgba(255,150,70,.6); }
+  #mb-sub { font-size: 10px; letter-spacing: 3px; color: #ffd9a0; }
+
+  #subtitle {
+    position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%);
+    max-width: 620px; text-align: center; opacity: 0; transition: opacity .25s;
+    padding: 9px 22px; background: rgba(16,9,24,.72); border-left: 2px solid #ff9d63;
+    border-right: 2px solid #ff9d63; border-radius: 4px;
+  }
+  #subtitle.show { opacity: 1; }
+  #subwho { font-size: 9px; letter-spacing: 3px; font-weight: 700; margin-bottom: 3px; }
+  #subtext { font-size: 13px; line-height: 1.45; color: #fff3dc; }
+
+  /* ---------- pause / game over ---------- */
+  #pause, #gameover {
+    position: fixed; inset: 0; z-index: 30; display: none;
+    align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 50% 40%, rgba(50,20,44,.72), rgba(10,6,16,.9));
+    backdrop-filter: blur(5px);
+  }
+  #pause.show, #gameover.show { display: flex; }
+  #gameover { z-index: 40; }
+  .card {
+    width: min(560px, 92vw); max-height: 88vh; overflow-y: auto;
+    background: linear-gradient(165deg, rgba(38,20,40,.96), rgba(20,12,26,.96));
+    border: 1px solid rgba(255,190,120,.38); border-radius: 10px;
+    padding: 26px 30px 28px; box-shadow: 0 30px 80px rgba(0,0,0,.6);
+  }
+  .card h3 { font-size: 24px; letter-spacing: 6px; font-weight: 800; color: #fff3dc; }
+  #gokicker, .cardkick { font-size: 9px; letter-spacing: 5px; color: #ff9d63; margin-bottom: 4px; }
+  #gosub { font-size: 12px; letter-spacing: 2px; color: #ffd9a0; margin-top: 8px; }
+  .cardrule { height: 2px; margin: 16px 0 18px; background: linear-gradient(90deg, #ffb469, transparent); }
+  .menubtns { display: flex; flex-direction: column; gap: 8px; }
+  .mbtn {
+    font-family: inherit; cursor: pointer; text-align: left; font-size: 12px;
+    letter-spacing: 3px; font-weight: 700; color: #ffe6cd; padding: 11px 16px;
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,190,130,.24);
+    border-radius: 6px; transition: background .15s, border-color .15s;
+  }
+  .mbtn:hover { background: rgba(255,150,70,.18); border-color: rgba(255,190,130,.6); }
+  .mbtn small { display: block; font-size: 9px; letter-spacing: 1.5px; color: rgba(255,190,140,.6); margin-top: 3px; font-weight: 400; }
+  #gameover .menubtns { flex-direction: row; }
+  #gameover .mbtn { text-align: center; flex: 1; }
+  #pauseStats { font-size: 9px; letter-spacing: 2px; color: rgba(255,220,190,.55); margin-top: 16px; }
+  #pausecontrols, #pausemissions { display: none; margin-top: 16px; }
+  #pausecontrols.show, #pausemissions.show { display: block; }
+  #pausecontrols { font-size: 11px; line-height: 2; columns: 2; column-gap: 24px; color: #ffe6cd; }
+  #pausecontrols b { color: #ffb97a; letter-spacing: 1px; }
+  #pmlist { display: flex; flex-direction: column; gap: 5px; }
+  .pmrow {
+    display: flex; align-items: center; gap: 10px; width: 100%; cursor: pointer;
+    font-family: inherit; text-align: left; padding: 8px 10px; border-radius: 6px;
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,190,130,.16); color: #ffe6cd;
+  }
+  .pmrow:hover { background: rgba(255,150,70,.14); }
+  .pmrow.active { border-color: rgba(255,209,102,.8); background: rgba(255,150,70,.16); }
+  .pmrow.done { opacity: .62; }
+  .pmrow.locked { opacity: .4; cursor: not-allowed; }
+  .pmnum { font-size: 10px; letter-spacing: 1px; color: #ff9d63; }
+  .pmname { flex: 1; font-size: 12px; letter-spacing: 2px; font-weight: 700; }
+  .pmname i { display: block; font-style: normal; font-size: 8px; letter-spacing: 1.4px; color: rgba(255,190,140,.65); margin-top: 2px; font-weight: 400; }
+  .pmstate { font-size: 8px; letter-spacing: 2px; color: #b8ffc9; }
+
 </style>
 </head>
 <body>
@@ -201,6 +288,16 @@
         <div id="ammomax">/ 96</div>
       </div>
     </div>
+    <div id="missionpanel" class="panel hidden">
+      <div id="mp-top">
+        <span id="mp-tag">JOB 01 / DELIVERY</span>
+        <span id="mp-timer">5:00</span>
+      </div>
+      <div id="mp-title">EL PAQUETE</div>
+      <div id="mp-objective">DELIVER THE PARCEL — GALERÍA SOL</div>
+      <div id="mp-track"><div id="mp-bar"></div></div>
+      <div id="mp-foot"><span>REWARD</span><span id="mp-reward">$600</span></div>
+    </div>
   </div>
 
   <div id="topright">
@@ -218,6 +315,15 @@
   <div id="crosshair"></div>
   <div id="hurt"></div>
   <div id="toast" class="panel"></div>
+  <div id="missionbanner">
+    <div id="mb-kicker">NEW JOB</div>
+    <div id="mb-title">EL PAQUETE</div>
+    <div id="mb-sub">COBRA AZUL</div>
+  </div>
+  <div id="subtitle">
+    <div id="subwho">RICO</div>
+    <div id="subtext"></div>
+  </div>
 
   <div id="speedo" class="panel">
     <div id="speedcol">
@@ -243,7 +349,7 @@
     <div id="minimapcoords">PUERTO SOL</div>
   </div>
 
-  <div id="hint">WASD MOVE &nbsp;&middot;&nbsp; SHIFT RUN &nbsp;&middot;&nbsp; E VEHICLE &nbsp;&middot;&nbsp; CLICK SHOOT &nbsp;&middot;&nbsp; F PUNCH &nbsp;&middot;&nbsp; H HORN &nbsp;&middot;&nbsp; SPACE HANDBRAKE</div>
+  <div id="hint">WASD MOVE &nbsp;&middot;&nbsp; SHIFT RUN &nbsp;&middot;&nbsp; E VEHICLE &nbsp;&middot;&nbsp; CLICK SHOOT &nbsp;&middot;&nbsp; F PUNCH &nbsp;&middot;&nbsp; H HORN &nbsp;&middot;&nbsp; SPACE HANDBRAKE &nbsp;&middot;&nbsp; P PAUSE</div>
 </div>
 
 <div id="title">
@@ -266,7 +372,7 @@
       <div><b>H</b> &mdash; horn</div>
       <div><b>MOUSE DRAG</b> &mdash; orbit camera</div>
       <div><b>WHEEL</b> &mdash; zoom</div>
-      <div><b>ESC</b> &mdash; release mouse</div>
+      <div><b>ESC / P</b> &mdash; pause menu</div>
       <div><b>R</b> &mdash; back to spawn</div>
       <div><b>K</b> &mdash; demo: call the police</div>
     </div>
@@ -274,6 +380,62 @@
 </div>
 <div id="loading">BUILDING PUERTO SOL&hellip;</div>
 
+<div id="pause">
+  <div class="card">
+    <div class="cardkick">SUNSET CITY — PAUSED</div>
+    <h3>PUERTO SOL</h3>
+    <div class="cardrule"></div>
+    <div class="menubtns">
+      <button class="mbtn" id="btnresume">RESUME<small>BACK TO THE STREET</small></button>
+      <button class="mbtn" id="btncontrols">CONTROLS<small>KEYS AND MOUSE</small></button>
+      <button class="mbtn" id="btnmissions">MISSIONS<small>THE COBRA AZUL JOB LIST</small></button>
+      <button class="mbtn" id="btnrestart">RESTART<small>CLEAR SAVE AND START OVER</small></button>
+    </div>
+    <div id="pauseStats"></div>
+    <div id="pausecontrols">
+      <div><b>W A S D</b> — walk / drive</div>
+      <div><b>SHIFT</b> — sprint</div>
+      <div><b>SPACE</b> — jump / handbrake</div>
+      <div><b>E</b> — enter or leave a car</div>
+      <div><b>CLICK</b> — fire pistol</div>
+      <div><b>F</b> — punch</div>
+      <div><b>H</b> — horn</div>
+      <div><b>MOUSE DRAG</b> — orbit camera</div>
+      <div><b>WHEEL</b> — zoom</div>
+      <div><b>ESC / P</b> — pause</div>
+    </div>
+    <div id="pausemissions">
+      <div id="pmlist"></div>
+    </div>
+  </div>
+</div>
+
+<div id="gameover">
+  <div class="card">
+    <div id="gokicker">SUNSET CITY</div>
+    <h3 id="gotitle">WASTED</h3>
+    <div id="gosub"></div>
+    <div class="cardrule"></div>
+    <div class="menubtns">
+      <button class="mbtn" id="goretry">RETRY</button>
+      <button class="mbtn" id="goroam">FREE ROAM</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // tiny diagnostics hook: the game must boot and run without console errors
+  window.__errorLog = [];
+  window.addEventListener('error', function (e) { window.__errorLog.push(String(e.message || e.error)); });
+  window.addEventListener('unhandledrejection', function (e) { window.__errorLog.push('rejection: ' + String(e.reason)); });
+  (function () {
+    var ce = console.error;
+    console.error = function () {
+      window.__errorLog.push('console.error: ' + Array.prototype.map.call(arguments, String).join(' '));
+      ce.apply(console, arguments);
+    };
+  })();
+</script>
 <script type="importmap">
 {
   "imports": {

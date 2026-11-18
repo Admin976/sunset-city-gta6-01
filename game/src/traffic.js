@@ -41,8 +41,8 @@ export class Traffic {
     return this.nodePos(i + di, j + dj).add(this.laneOffset(di, dj));
   }
 
-  makeCar(type, x, z, yaw, kind = 'npc') {
-    const v = buildVehicle(type);
+  makeCar(type, x, z, yaw, kind = 'npc', opts = {}) {
+    const v = buildVehicle(type, opts);
     v.group.position.set(x, 0.05, z);
     v.group.rotation.y = yaw;
     this.scene.add(v.group);

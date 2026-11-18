@@ -27,49 +27,77 @@ export class Minimap {
     g.fillStyle = '#171021';
     g.fillRect(0, 0, this.mapPx, this.mapPx);
 
-    // sea and sand
-    g.fillStyle = '#22465a';
+    // sea, a foam line on the coast, then the sand strip
+    const seaGrad = g.createLinearGradient(0, this.w2m(CITY.waterZ), 0, this.mapPx);
+    seaGrad.addColorStop(0, '#2b6079');
+    seaGrad.addColorStop(1, '#122c40');
+    g.fillStyle = seaGrad;
     g.fillRect(0, this.w2m(CITY.waterZ), this.mapPx, this.mapPx);
-    g.fillStyle = '#8d7355';
+    g.fillStyle = '#94795a';
     g.fillRect(0, this.w2m(CITY.beachZ), this.mapPx, this.w2m(CITY.waterZ) - this.w2m(CITY.beachZ));
+    g.strokeStyle = 'rgba(190,235,245,0.75)';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(0, this.w2m(CITY.waterZ));
+    g.lineTo(this.mapPx, this.w2m(CITY.waterZ));
+    g.stroke();
 
-    // blocks
+    // blocks: dark plates with a faint kerb outline
     for (const b of this.data.blocks) {
-      g.fillStyle = b.downtown ? '#3a2f47' : '#302639';
-      g.fillRect(
-        this.w2m(b.x - b.w / 2) - CITY.sidewalk * s,
-        this.w2m(b.z - b.d / 2) - CITY.sidewalk * s,
-        (b.w + CITY.sidewalk * 2) * s,
-        (b.d + CITY.sidewalk * 2) * s,
-      );
+      const x = this.w2m(b.x - b.w / 2) - CITY.sidewalk * s;
+      const y = this.w2m(b.z - b.d / 2) - CITY.sidewalk * s;
+      const w = (b.w + CITY.sidewalk * 2) * s;
+      g.fillStyle = b.downtown ? '#2e2540' : '#282033';
+      g.fillRect(x, y, w, w);
+      g.strokeStyle = 'rgba(150,135,175,0.22)';
+      g.lineWidth = 1;
+      g.strokeRect(x, y, w, w);
     }
 
-    // roads
-    g.strokeStyle = '#5a5262';
-    g.lineWidth = Math.max(2.2, CITY.roadWidth * s);
-    g.lineCap = 'butt';
+    // roads: a dark casing under a lighter asphalt slab so the grid reads
+    const drawRoad = (style, extra) => {
+      g.strokeStyle = style;
+      g.lineWidth = Math.max(2.2, (CITY.roadWidth + extra) * s);
+      g.lineCap = 'butt';
+      for (const r of this.data.roads) {
+        g.beginPath();
+        if (r.axis === 'z') {
+          g.moveTo(this.w2m(r.x), 0);
+          g.lineTo(this.w2m(r.x), this.mapPx);
+        } else {
+          g.moveTo(0, this.w2m(r.z));
+          g.lineTo(this.mapPx, this.w2m(r.z));
+        }
+        g.stroke();
+      }
+    };
+    drawRoad('#241c2e', 3);
+    drawRoad('#6a6175', 0);
+
+    // centre dashes down every avenue
+    g.strokeStyle = 'rgba(232,217,184,0.32)';
+    g.lineWidth = 1.1;
+    g.setLineDash([5, 7]);
     for (const r of this.data.roads) {
       g.beginPath();
       if (r.axis === 'z') {
         g.moveTo(this.w2m(r.x), 0);
-        g.lineTo(this.w2m(r.x), this.mapPx);
+        g.lineTo(this.w2m(r.x), this.w2m(CITY.beachZ));
       } else {
         g.moveTo(0, this.w2m(r.z));
         g.lineTo(this.mapPx, this.w2m(r.z));
       }
       g.stroke();
     }
+    g.setLineDash([]);
 
-    // buildings, coloured like their glass
+    // buildings, coloured like their facades
     for (const b of this.data.buildings) {
       const col = b.color;
-      g.fillStyle = `rgba(${Math.round(col.r * 255)},${Math.round(col.g * 255)},${Math.round(col.b * 255)},0.92)`;
-      g.fillRect(
-        this.w2m(b.x - b.w / 2),
-        this.w2m(b.z - b.d / 2),
-        Math.max(1.2, b.w * s),
-        Math.max(1.2, b.d * s),
-      );
+      g.fillStyle = `rgba(${Math.round(col.r * 255)},${Math.round(col.g * 255)},${Math.round(col.b * 255)},0.94)`;
+      const bw = Math.max(1.2, b.w * s);
+      const bd = Math.max(1.2, b.d * s);
+      g.fillRect(this.w2m(b.x - b.w / 2), this.w2m(b.z - b.d / 2), bw, bd);
     }
 
     // plaza + landmarks
@@ -161,6 +189,11 @@ export class Minimap {
       ctx.shadowBlur = 8 * pulse;
       ctx.fillRect(-4, -4, 8, 8);
       ctx.restore();
+      ctx.beginPath();
+      ctx.arc(ox, oy, 9 + 2 * pulse, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,214,120,0.55)';
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
     }
 
     for (const cop of extras.police || []) {
